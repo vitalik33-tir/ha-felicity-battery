@@ -1,0 +1,9 @@
+{
+  "name": "Felicity Battery (TCP)",
+  "content_in_root": false,
+  "render_readme": true,
+  "domains": [
+    "sensor"
+  ],
+  "country": "md"
+}
