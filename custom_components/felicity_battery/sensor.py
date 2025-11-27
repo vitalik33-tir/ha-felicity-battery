@@ -30,6 +30,7 @@ class FelicitySensorDescription(SensorEntityDescription):
 
 
 SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
+    # --- Основные рабочие сенсоры ---
     FelicitySensorDescription(
         key="soc",
         name="Battery SOC",
@@ -133,16 +134,87 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         name="Battery Warning",
         icon="mdi:alert-circle",
     ),
-    # Логические сенсоры с атрибутами базовой/настройной инфы
+
+    # --- Инфо / прошивки / тип ---
     FelicitySensorDescription(
-        key="basic_info",
-        name="Battery Basic Info",
-        icon="mdi:information-outline",
+        key="fw_version",
+        name="Battery FW Version",
+        icon="mdi:chip",
     ),
     FelicitySensorDescription(
-        key="settings",
-        name="Battery Settings",
-        icon="mdi:tune-variant",
+        key="bms_m1_fw",
+        name="Battery BMS M1 FW",
+        icon="mdi:chip",
+    ),
+    FelicitySensorDescription(
+        key="bms_m2_fw",
+        name="Battery BMS M2 FW",
+        icon="mdi:chip",
+    ),
+    FelicitySensorDescription(
+        key="battery_type",
+        name="Battery Type",
+        icon="mdi:identifier",
+    ),
+    FelicitySensorDescription(
+        key="battery_subtype",
+        name="Battery SubType",
+        icon="mdi:identifier",
+    ),
+
+    # --- Настройки / пороги ---
+    FelicitySensorDescription(
+        key="ttl_pack",
+        name="Battery Pack Count",
+        icon="mdi:battery-variant",
+    ),
+    FelicitySensorDescription(
+        key="cell_v_80",
+        name="Cell Voltage @80%",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:battery-80",
+    ),
+    FelicitySensorDescription(
+        key="cell_v_20",
+        name="Cell Voltage @20%",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:battery-20",
+    ),
+    FelicitySensorDescription(
+        key="cell_over_voltage",
+        name="Cell Over Voltage",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:flash-alert",
+    ),
+    FelicitySensorDescription(
+        key="cell_under_voltage",
+        name="Cell Under Voltage",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:flash-alert-outline",
+    ),
+    FelicitySensorDescription(
+        key="charge_limit_setting",
+        name="Charge Current Limit (setting)",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:current-ac",
+    ),
+    FelicitySensorDescription(
+        key="discharge_limit_setting",
+        name="Discharge Current Limit (setting)",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:current-ac",
     ),
 )
 
@@ -183,11 +255,14 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         """Return device info to group entities into one device."""
         data = self.coordinator.data or {}
         serial = data.get("DevSN") or data.get("wifiSN") or self._entry.entry_id
+        basic = data.get("_basic") or {}
+        sw_version = basic.get("version")
         return {
             "identifiers": {(DOMAIN, serial)},
             "name": self._entry.data.get("name", "Felicity Battery"),
             "manufacturer": "Felicity",
             "model": "FLA48200",
+            "sw_version": sw_version,
         }
 
     @property
@@ -205,6 +280,7 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
             except (KeyError, IndexError, TypeError):
                 return None
 
+        # --- Runtime telemetry ---
         if key == "soc":
             raw = get_nested(("Batsoc", 0, 0))
             return round(raw / 100, 1) if raw is not None else None
@@ -283,13 +359,52 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
                 return None
             return int(v)
 
-        if key == "basic_info":
-            basic = data.get("_basic")
-            return "online" if basic else "unavailable"
+        # --- Basic info / firmware / type ---
+        basic = data.get("_basic") or {}
+        settings = data.get("_settings") or {}
 
-        if key == "settings":
-            settings = data.get("_settings")
-            return "loaded" if settings else "unavailable"
+        if key == "fw_version":
+            return basic.get("version")
+
+        if key == "bms_m1_fw":
+            return basic.get("M1SwVer")
+
+        if key == "bms_m2_fw":
+            return basic.get("M2SwVer")
+
+        if key == "battery_type":
+            return basic.get("Type")
+
+        if key == "battery_subtype":
+            return basic.get("SubType")
+
+        # --- Settings / thresholds ---
+        if key == "ttl_pack":
+            return settings.get("ttlPack")
+
+        if key == "cell_v_80":
+            raw = settings.get("wCVP80")
+            return round(raw / 1000, 3) if isinstance(raw, (int, float)) else None
+
+        if key == "cell_v_20":
+            raw = settings.get("wCVP20")
+            return round(raw / 1000, 3) if isinstance(raw, (int, float)) else None
+
+        if key == "cell_over_voltage":
+            raw = settings.get("cVolHi")
+            return round(raw / 1000, 3) if isinstance(raw, (int, float)) else None
+
+        if key == "cell_under_voltage":
+            raw = settings.get("cVolLo")
+            return round(raw / 1000, 3) if isinstance(raw, (int, float)) else None
+
+        if key == "charge_limit_setting":
+            raw = settings.get("bCCHi2")
+            return round(raw / 10, 1) if isinstance(raw, (int, float)) else None
+
+        if key == "discharge_limit_setting":
+            raw = settings.get("bDCHi2")
+            return round(raw / 10, 1) if isinstance(raw, (int, float)) else None
 
         return None
 
@@ -299,13 +414,27 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         data: dict = self.coordinator.data or {}
         key = self.entity_description.key
 
-        if key == "basic_info":
+        if key in {
+            "fw_version",
+            "bms_m1_fw",
+            "bms_m2_fw",
+            "battery_type",
+            "battery_subtype",
+        }:
             basic = data.get("_basic")
             if isinstance(basic, dict):
                 return basic
             return None
 
-        if key == "settings":
+        if key in {
+            "ttl_pack",
+            "cell_v_80",
+            "cell_v_20",
+            "cell_over_voltage",
+            "cell_under_voltage",
+            "charge_limit_setting",
+            "discharge_limit_setting",
+        }:
             settings = data.get("_settings")
             if isinstance(settings, dict):
                 return settings
