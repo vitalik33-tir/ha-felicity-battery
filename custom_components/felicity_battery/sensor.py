@@ -103,6 +103,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:chart-bell-curve",
     ),
+
     # --- Напряжения ячеек 1–16 ---
     FelicitySensorDescription(
         key="cell_1_v",
@@ -232,6 +233,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
     ),
+
     # --- Лимиты по фактическим данным ---
     FelicitySensorDescription(
         key="max_charge_current",
@@ -264,6 +266,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         name="Battery Warning",
         icon="mdi:alert-circle",
     ),
+
     # --- Инфо / прошивки / тип ---
     FelicitySensorDescription(
         key="fw_version",
@@ -290,6 +293,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         name="Battery SubType",
         icon="mdi:identifier",
     ),
+
     # --- Настройки / пороги ---
     FelicitySensorDescription(
         key="ttl_pack",
@@ -440,18 +444,18 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
 
         if key == "max_cell_v":
             raw = get_nested(("BMaxMin", 0, 0))
-            return round(raw / 1000, 3) if raw is not None else None
+            return round(raw / 1000, 2) if raw is not None else None
 
         if key == "min_cell_v":
             raw = get_nested(("BMaxMin", 0, 1))
-            return round(raw / 1000, 3) if raw is not None else None
+            return round(raw / 1000, 2) if raw is not None else None
 
         if key == "cell_drift":
             max_raw = get_nested(("BMaxMin", 0, 0))
             min_raw = get_nested(("BMaxMin", 0, 1))
             if max_raw is None or min_raw is None:
                 return None
-            return round((max_raw - min_raw) / 1000, 3)
+            return round((max_raw - min_raw) / 1000, 2)
 
         # --- Cell voltages 1–16 ---
         if key.startswith("cell_") and key.endswith("_v"):
@@ -462,7 +466,8 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
             raw = get_nested(("BatcelList", 0, idx))
             if raw is None or raw == 65535:
                 return None
-            return round(raw / 1000, 3)
+            # мВ -> В, два знака
+            return round(raw / 1000.0, 2)
 
         # --- Limits from runtime data ---
         if key == "max_charge_current":
@@ -524,19 +529,19 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
 
         if key == "cell_v_80":
             raw = settings.get("wCVP80")
-            return round(raw / 1000, 3) if isinstance(raw, (int, float)) else None
+            return round(raw / 1000, 2) if isinstance(raw, (int, float)) else None
 
         if key == "cell_v_20":
             raw = settings.get("wCVP20")
-            return round(raw / 1000, 3) if isinstance(raw, (int, float)) else None
+            return round(raw / 1000, 2) if isinstance(raw, (int, float)) else None
 
         if key == "cell_over_voltage":
             raw = settings.get("cVolHi")
-            return round(raw / 1000, 3) if isinstance(raw, (int, float)) else None
+            return round(raw / 1000, 2) if isinstance(raw, (int, float)) else None
 
         if key == "cell_under_voltage":
             raw = settings.get("cVolLo")
-            return round(raw / 1000, 3) if isinstance(raw, (int, float)) else None
+            return round(raw / 1000, 2) if isinstance(raw, (int, float)) else None
 
         if key == "charge_limit_setting":
             raw = settings.get("bCCHi2")
