@@ -38,6 +38,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=1,
     ),
     FelicitySensorDescription(
         key="voltage",
@@ -46,6 +47,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:current-dc",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="current",
@@ -54,6 +56,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:current-dc",
+        suggested_display_precision=1,
     ),
     FelicitySensorDescription(
         key="power",
@@ -70,6 +73,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:thermometer",
+        suggested_display_precision=1,
     ),
     FelicitySensorDescription(
         key="temp2",
@@ -78,6 +82,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:thermometer",
+        suggested_display_precision=1,
     ),
     FelicitySensorDescription(
         key="max_cell_v",
@@ -86,6 +91,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery-high",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="min_cell_v",
@@ -94,6 +100,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery-low",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_drift",
@@ -102,6 +109,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:chart-bell-curve",
+        suggested_display_precision=2,
     ),
 
     # --- Напряжения ячеек 1–16 ---
@@ -112,6 +120,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_2_v",
@@ -120,6 +129,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_3_v",
@@ -128,6 +138,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_4_v",
@@ -136,6 +147,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_5_v",
@@ -144,6 +156,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_6_v",
@@ -152,6 +165,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_7_v",
@@ -160,6 +174,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_8_v",
@@ -168,6 +183,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_9_v",
@@ -176,6 +192,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_10_v",
@@ -184,6 +201,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_11_v",
@@ -192,6 +210,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_12_v",
@@ -200,6 +219,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_13_v",
@@ -208,6 +228,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_14_v",
@@ -216,6 +237,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_15_v",
@@ -224,6 +246,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_16_v",
@@ -232,6 +255,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery",
+        suggested_display_precision=2,
     ),
 
     # --- Лимиты по фактическим данным ---
@@ -242,6 +266,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:current-ac",
+        suggested_display_precision=1,
     ),
     FelicitySensorDescription(
         key="max_discharge_current",
@@ -250,6 +275,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:current-ac",
+        suggested_display_precision=1,
     ),
     FelicitySensorDescription(
         key="state",
@@ -307,6 +333,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery-80",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_v_20",
@@ -315,6 +342,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery-20",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_over_voltage",
@@ -323,6 +351,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:flash-alert",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="cell_under_voltage",
@@ -331,6 +360,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:flash-alert-outline",
+        suggested_display_precision=2,
     ),
     FelicitySensorDescription(
         key="charge_limit_setting",
@@ -339,6 +369,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:current-ac",
+        suggested_display_precision=1,
     ),
     FelicitySensorDescription(
         key="discharge_limit_setting",
@@ -347,6 +378,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:current-ac",
+        suggested_display_precision=1,
     ),
 )
 

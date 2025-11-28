@@ -81,7 +81,6 @@ class FelicityClient:
                     break
                 data += chunk
                 if b"}" in chunk:
-                    # небольшой добор, если сразу пришёл второй пакет
                     try:
                         more = await asyncio.wait_for(reader.read(1024), timeout=0.2)
                         if more:
@@ -114,6 +113,7 @@ class FelicityClient:
 
     def _parse_real_payload(self, text: str) -> Dict[str, Any]:
         """Parse Felicity 'dev real infor' payload into dict we use."""
+        # строка уже JSON, но иногда с одинарными кавычками и хвостами
         norm = text.replace("'", '"')
         last_brace = norm.rfind("}")
         if last_brace != -1:
@@ -203,6 +203,7 @@ class FelicityClient:
             else:
                 btemp = [[t1, t2]]
         else:
+            # fallback: берём первые два из Templist
             m = re.search(
                 r'"Templist"\s*:\s*\[\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\]',
                 norm,
@@ -214,7 +215,7 @@ class FelicityClient:
         if btemp is not None:
             result["BTemp"] = btemp
 
-        # BatcelList – список напряжений ячеек
+        # BatcelList – список напряжений ячеек в мВ
         m = re.search(r'"BatcelList"\s*:\s*\[\s*\[([0-9,\s-]+)\]', norm)
         if m:
             cells_str = m.group(1)
@@ -222,7 +223,7 @@ class FelicityClient:
                 cells = [int(x) for x in cells_str.split(",") if x.strip() != ""]
                 result["BatcelList"] = [cells]
             except Exception:
-                pass
+                _LOGGER.debug("Failed to parse BatcelList from %r", cells_str)
 
         _LOGGER.debug("Parsed Felicity real data dict: %s", result)
 
@@ -249,5 +250,4 @@ class FelicityClient:
                 if depth == 0:
                     return text[start : i + 1]
 
-        # если не нашли закрытие – возвращаем всё от первой '{'
         return text[start:] or None
