@@ -1,5 +1,4 @@
 from __future__ import annotations
-# -*- coding: utf-8 -*-
 
 from dataclasses import dataclass
 from typing import Any
@@ -17,7 +16,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 
-# РџРѕСЂРѕРі "Р±РѕР»СЊС€РѕРіРѕ" СЂР°Р·Р±СЂРѕСЃР° РїРѕ СЏС‡РµР№РєР°Рј, Р’
+# Порог "большого" разброса по ячейкам, В
 CELL_DRIFT_HIGH_THRESHOLD_V = 0.03
 
 
@@ -141,7 +140,7 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
         estate = data.get("Estate")
         if key == "charging":
-            # РїРѕ РєРѕРґСѓ СЃРѕСЃС‚РѕСЏРЅРёСЏ + РїРѕ Р·РЅР°РєСѓ С‚РѕРєР°
+            # по коду состояния + по знаку тока
             if estate == 9152:
                 return True
             i_raw = get_nested(("Batt", 1, 0))

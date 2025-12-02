@@ -1,5 +1,4 @@
 from __future__ import annotations
-# -*- coding: utf-8 -*-
 
 from dataclasses import dataclass
 from typing import Any
@@ -32,7 +31,7 @@ class FelicitySensorDescription(SensorEntityDescription):
 
 
 SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
-    # --- РћСЃРЅРѕРІРЅС‹Рµ СЂР°Р±РѕС‡РёРµ СЃРµРЅСЃРѕСЂС‹ ---
+    # --- Основные рабочие сенсоры ---
     FelicitySensorDescription(
         key="soc",
         name="Battery SOC",
@@ -68,7 +67,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:flash",
     ),
-    # Р Р°Р·РґРµР»С‘РЅРЅС‹Рµ С‚РѕРєРё/РјРѕС‰РЅРѕСЃС‚Рё
+    # Разделённые токи/мощности
     FelicitySensorDescription(
         key="charge_current",
         name="Battery Charge Current",
@@ -127,7 +126,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         suggested_display_precision=1,
     ),
 
-    # --- Р”РёР°РіРЅРѕСЃС‚РёРєР° РїРѕ СЏС‡РµР№РєР°Рј ---
+    # --- Диагностика по ячейкам ---
     FelicitySensorDescription(
         key="max_cell_v",
         name="Max Cell Voltage",
@@ -159,7 +158,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
 
-    # --- РќР°РїСЂСЏР¶РµРЅРёСЏ СЏС‡РµРµРє 1вЂ“16 (РґРёР°РіРЅРѕСЃС‚РёРєР°) ---
+    # --- Напряжения ячеек 1–16 (диагностика) ---
     FelicitySensorDescription(
         key="cell_1_v",
         name="Cell 1 Voltage",
@@ -321,7 +320,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
 
-    # --- Р›РёРјРёС‚С‹ РїРѕ С„Р°РєС‚РёС‡РµСЃРєРёРј РґР°РЅРЅС‹Рј ---
+    # --- Лимиты по фактическим данным ---
     FelicitySensorDescription(
         key="max_charge_current",
         name="Max Charge Current (runtime)",
@@ -343,7 +342,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
 
-    # --- РЎРѕСЃС‚РѕСЏРЅРёРµ / РєРѕРґС‹ ---
+    # --- Состояние / коды ---
     FelicitySensorDescription(
         key="state",
         name="Battery State",
@@ -362,7 +361,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
 
-    # --- РРЅС„Рѕ / РїСЂРѕС€РёРІРєРё / С‚РёРї / СЃРµСЂРёР№РЅРёРєРё ---
+    # --- Инфо / прошивки / тип / серийники ---
     FelicitySensorDescription(
         key="fw_version",
         name="Battery FW Version",
@@ -406,7 +405,7 @@ SENSOR_DESCRIPTIONS: tuple[FelicitySensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
 
-    # --- РќР°СЃС‚СЂРѕР№РєРё / РїРѕСЂРѕРіРё (dev set infor) ---
+    # --- Настройки / пороги (dev set infor) ---
     FelicitySensorDescription(
         key="ttl_pack",
         name="Battery Pack Count",
@@ -634,7 +633,7 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
                 return None
             return round((max_raw - min_raw) / 1000, 3)
 
-        # --- Cell voltages 1вЂ“16 ---
+        # --- Cell voltages 1–16 ---
         if key.startswith("cell_") and key.endswith("_v"):
             try:
                 idx = int(key.split("_")[1]) - 1  # 0..15
@@ -643,7 +642,7 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
             raw = get_nested(("BatcelList", 0, idx))
             if raw is None or raw == 65535:
                 return None
-            # РјР’ -> Р’, С‚СЂРё Р·РЅР°РєР°
+            # мВ -> В, три знака
             return round(raw / 1000.0, 3)
 
         # --- Limits from runtime data ---
@@ -742,7 +741,7 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         data: dict = self.coordinator.data or {}
         key = self.entity_description.key
 
-        # РђРіСЂРµРіР°С†РёСЏ РїРѕ СЏС‡РµР№РєР°Рј РґР»СЏ СЃРµРЅСЃРѕСЂР° cell_drift
+        # Агрегация по ячейкам для сенсора cell_drift
         if key == "cell_drift":
             attrs: dict[str, Any] = {}
             cells_list = data.get("BatcelList")
