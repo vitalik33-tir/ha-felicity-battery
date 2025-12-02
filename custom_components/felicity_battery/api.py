@@ -43,18 +43,47 @@ class FelicityClient:
         except Exception as err:
             _LOGGER.debug("Failed to read basic info: %s", err)
 
-        # 3. Settings / limits (может быть в нескольких пакетах)
+        # 3. Settings / limits (может быть в нескольких JSON-блоках подряд)
         try:
             set_raw = await self._async_read_raw(
                 b"wifilocalMonitor:get dev set infor"
             )
-            set_text = set_raw.replace("'", '"').strip()
-            first_json = self._extract_first_json_object(set_text)
-            if first_json:
-                settings = json.loads(first_json)
-                data["_settings"] = settings
         except Exception as err:
-            _LOGGER.debug("Failed to read settings info: %s", err)
+            _LOGGER.debug("Failed to read settings info (read error): %s", err)
+        else:
+            set_text = set_raw.replace("'", '"').strip()
+            merged: Dict[str, Any] = {}
+
+            depth = 0
+            buf: list[str] = []
+            for ch in set_text:
+                if ch == "{":
+                    if depth == 0:
+                        buf = []
+                    depth += 1
+                if depth > 0:
+                    buf.append(ch)
+                if ch == "}":
+                    depth -= 1
+                    if depth == 0 and buf:
+                        chunk = "".join(buf)
+                        try:
+                            part = json.loads(chunk)
+                        except Exception as json_err:
+                            _LOGGER.debug("Invalid JSON chunk in settings: %s", json_err)
+                        else:
+                            merged.update(part)
+                        buf = []
+
+            if merged:
+                data["_settings"] = merged
+                _LOGGER.debug(
+                    "Merged Felicity settings (%d keys): %s",
+                    len(merged),
+                    merged,
+                )
+            else:
+                _LOGGER.debug("No valid JSON found in settings payload: %r", set_text)
 
         return data
 
