@@ -2,8 +2,6 @@ from __future__ import annotations
 # -*- coding: utf-8 -*-
 
 from dataclasses import dataclass
-from .const import CONF_HOST
-
 from typing import Any
 
 from homeassistant.components.binary_sensor import (
@@ -98,17 +96,13 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
 
-    
-    from .const import CONF_HOST
-
     @property
     def device_info(self) -> dict[str, Any]:
+        """Return device info to group entities into one device."""
         data = self.coordinator.data or {}
         serial = data.get("DevSN") or data.get("wifiSN") or self._entry.entry_id
         basic = data.get("_basic") or {}
         sw_version = basic.get("version")
-        host = self._entry.data.get(CONF_HOST)
-
         return {
             "identifiers": {(DOMAIN, serial)},
             "name": self._entry.data.get("name", "Felicity Battery"),
@@ -116,9 +110,7 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
             "model": "FLA48200",
             "sw_version": sw_version,
             "serial_number": serial,
-            "configuration_url": f"http://{host}" if host else None,
         }
-
 
     @property
     def is_on(self) -> bool | None:
