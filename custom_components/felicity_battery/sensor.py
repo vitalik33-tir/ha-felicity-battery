@@ -514,14 +514,25 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         serial = data.get("DevSN") or data.get("wifiSN") or self._entry.entry_id
         basic = data.get("_basic") or {}
         sw_version = basic.get("version")
+
+        # host хранится в данных config_entry, там его записал config_flow
+        host = self._entry.data.get("host")
+
+        # идентификатор оставляем «чистым», а в отображаемую строку подмешиваем IP
+        if host:
+            serial_display = f"{serial} (IP {host})"
+        else:
+            serial_display = serial
+
         return {
             "identifiers": {(DOMAIN, serial)},
             "name": self._entry.data.get("name", "Felicity Battery"),
             "manufacturer": "Felicity",
             "model": "FLA48200",
             "sw_version": sw_version,
-            "serial_number": serial,
+            "serial_number": serial_display,
         }
+
 
     @property
     def native_value(self) -> Any:
