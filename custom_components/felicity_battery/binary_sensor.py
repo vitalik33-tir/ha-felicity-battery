@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+import logging
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -17,7 +18,9 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 
-# Порог "большого" разброса по ячейкам, В
+_LOGGER = logging.getLogger(__name__)
+
+# Порог разброса напряжений между ячейками, В
 CELL_DRIFT_HIGH_THRESHOLD_V = 0.03
 
 
@@ -69,14 +72,11 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Felicity binary sensors from a config entry."""
+    """Set up Felicity binary sensors."""
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
 
-    entities: list[FelicityBinarySensor] = [
-        FelicityBinarySensor(coordinator, entry, desc)
-        for desc in BINARY_SENSOR_DESCRIPTIONS
-    ]
+    entities = [FelicityBinarySensor(coordinator, entry, desc) for desc in BINARY_SENSOR_DESCRIPTIONS]
     async_add_entities(entities)
 
 
@@ -98,6 +98,7 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def device_info(self) -> dict[str, Any]:
+        """Return device info for grouping."""
         data = self.coordinator.data or {}
         serial = data.get("DevSN") or data.get("wifiSN") or self._entry.entry_id
         basic = data.get("_basic") or {}
@@ -112,78 +113,70 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
             "serial_number": serial,
         }
 
-
     @property
     def is_on(self) -> bool | None:
-        """Return true if the binary sensor is on."""
+        """Return true if condition is active."""
         data: dict = self.coordinator.data or {}
         key = self.entity_description.key
 
         def get_nested(path: tuple[Any, ...]):
-            cur: Any = data
+            cur = data
             try:
                 for p in path:
                     cur = cur[p]
                 return cur
-            except (KeyError, IndexError, TypeError):
+            except Exception:
                 return None
 
-        if key == "fault_active":
-            v = data.get("Bfault")
-            if v is None:
-                return None
-            return v != 0
+        try:
+            if key == "fault_active":
+                v = data.get("Bfault")
+                return v is not None and int(v) != 0
 
-        if key == "warning_active":
-            v = data.get("Bwarn")
-            if v is None:
-                return None
-            return v != 0
+            if key == "warning_active":
+                v = data.get("Bwarn")
+                return v is not None and int(v) != 0
 
-        estate = data.get("Estate")
-        if key == "charging":
-            # по коду состояния + по знаку тока
-            if estate == 9152:
-                return True
-            i_raw = get_nested(("Batt", 1, 0))
-            if i_raw is None:
-                return None
-            return (i_raw / 10.0) > 0.05
+            estate = data.get("Estate")
+            if key == "charging":
+                if estate == 9152:
+                    return True
+                i_raw = get_nested(("Batt", 1, 0))
+                return (i_raw / 10.0) > 0.05 if i_raw is not None else None
 
-        if key == "discharging":
-            if estate == 5056:
-                return True
-            i_raw = get_nested(("Batt", 1, 0))
-            if i_raw is None:
-                return None
-            return (i_raw / 10.0) < -0.05
+            if key == "discharging":
+                if estate == 5056:
+                    return True
+                i_raw = get_nested(("Batt", 1, 0))
+                return (i_raw / 10.0) < -0.05 if i_raw is not None else None
 
-        if key == "standby":
-            if estate in (960, 320):
-                return True
-            i_raw = get_nested(("Batt", 1, 0))
-            if i_raw is None:
-                return None
-            return abs(i_raw / 10.0) <= 0.05
+            if key == "standby":
+                if estate in (960, 320):
+                    return True
+                i_raw = get_nested(("Batt", 1, 0))
+                return abs(i_raw / 10.0) <= 0.05 if i_raw is not None else None
 
-        if key == "cell_drift_high":
-            max_raw = get_nested(("BMaxMin", 0, 0))
-            min_raw = get_nested(("BMaxMin", 0, 1))
-            if max_raw is None or min_raw is None:
-                return None
-            drift_v = (max_raw - min_raw) / 1000.0
-            return drift_v > CELL_DRIFT_HIGH_THRESHOLD_V
+            if key == "cell_drift_high":
+                max_raw = get_nested(("BMaxMin", 0, 0))
+                min_raw = get_nested(("BMaxMin", 0, 1))
+                if max_raw is None or min_raw is None:
+                    return None
+                drift_v = (max_raw - min_raw) / 1000.0
+                return drift_v > CELL_DRIFT_HIGH_THRESHOLD_V
+
+        except Exception as e:
+            _LOGGER.warning("Error in binary sensor %s: %s", key, e)
+            return None
 
         return None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Attributes for some binary sensors."""
+        """Extra diagnostic info."""
         data: dict = self.coordinator.data or {}
         key = self.entity_description.key
 
         if key == "cell_drift_high":
-            attrs: dict[str, Any] = {}
             bmaxmin = data.get("BMaxMin")
             if (
                 isinstance(bmaxmin, list)
@@ -193,10 +186,10 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
             ):
                 max_raw = bmaxmin[0][0]
                 min_raw = bmaxmin[0][1]
-                if isinstance(max_raw, int) and isinstance(min_raw, int):
-                    drift_v = (max_raw - min_raw) / 1000.0
-                    attrs["drift_v"] = round(drift_v, 3)
-                    attrs["threshold_v"] = CELL_DRIFT_HIGH_THRESHOLD_V
-            return attrs or None
+                drift_v = (max_raw - min_raw) / 1000.0
+                return {
+                    "drift_v": round(drift_v, 3),
+                    "threshold_v": CELL_DRIFT_HIGH_THRESHOLD_V,
+                }
 
         return None
