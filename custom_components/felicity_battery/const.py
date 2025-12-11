@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from homeassistant.const import Platform
 
-DOMAIN = "Felicity"
+DOMAIN = "felicity_battery"
 
 DEFAULT_PORT = 53970
 DEFAULT_SCAN_INTERVAL = 30  # seconds
