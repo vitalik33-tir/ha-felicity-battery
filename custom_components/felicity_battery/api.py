@@ -14,16 +14,43 @@ class FelicityApiError(Exception):
 
 
 class FelicityClient:
-    """TCP client for Felicity battery local API."""
+    """Async TCP client for Felicity local monitor protocol."""
 
-    def __init__(self, host: str, port: int) -> None:
+    def __init__(self, host: str, port: int, timeout: float = 5.0) -> None:
         self._host = host
         self._port = port
+        self._timeout = timeout
 
-    async def async_get_data(self) -> dict:
-        """Send commands and combine all data into one dict.
+    async def _async_read_raw(self, payload: bytes) -> str:
+        """Send raw bytes and read reply as string."""
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(self._host, self._port), timeout=self._timeout
+            )
+        except Exception as err:
+            raise FelicityApiError(f"Failed to connect to {self._host}:{self._port}") from err
 
-        - wifilocalMonitor:get dev real infor   -> runtime telemetry
+        try:
+            writer.write(payload)
+            await writer.drain()
+            data = await asyncio.wait_for(reader.read(64 * 1024), timeout=self._timeout)
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
+        except Exception as err:
+            raise FelicityApiError("Error during TCP read/write") from err
+
+        text = data.decode(errors="ignore")
+        _LOGGER.debug("Raw Felicity response: %r", text)
+        return text
+
+    async def async_get_data(self) -> Dict[str, Any]:
+        """Fetch and combine runtime, basic and settings data into one dict.
+
+        Uses three commands:
+        - wifilocalMonitor:get dev real infor   -> runtime values (Batt, Batsoc, temps, etc.)
         - wifilocalMonitor:get dev basice infor -> versions / type
         - wifilocalMonitor:get dev set infor    -> config / limits (multi-json)
         """
@@ -43,7 +70,6 @@ class FelicityClient:
         except Exception as err:
             _LOGGER.debug("Failed to read basic info: %s", err)
 
-        
         # 3. Settings / limits (может быть в нескольких JSON-блоках)
         try:
             set_raw = await self._async_read_raw(
@@ -54,32 +80,22 @@ class FelicityClient:
 
             # Разбираем несколько JSON-объектов подряд:
             depth = 0
-            start = None
-            json_objects: list[str] = []
-
-            for i, ch in enumerate(set_text):
+            buf = []
+            for ch in set_text:
+                buf.append(ch)
                 if ch == "{":
-                    if depth == 0:
-                        start = i
                     depth += 1
                 elif ch == "}":
-                    if depth > 0:
-                        depth -= 1
-                        if depth == 0 and start is not None:
-                            json_objects.append(set_text[start : i + 1])
-                            start = None
-
-            # На всякий случай fallback на простое регулярное выражение
-            if not json_objects:
-                json_objects = re.findall(r"\{.*?\}", set_text)
-
-            for obj in json_objects:
-                try:
-                    part = json.loads(obj)
-                    merged.update(part)
-                except Exception as e:
-                    _LOGGER.debug("Skip invalid part in settings: %s", e)
-                    continue
+                    depth -= 1
+                    if depth == 0:
+                        chunk = "".join(buf).strip()
+                        buf = []
+                        try:
+                            obj = json.loads(chunk)
+                            if isinstance(obj, dict):
+                                merged.update(obj)
+                        except Exception:
+                            _LOGGER.debug("Failed to parse settings chunk: %r", chunk)
 
             if merged:
                 data["_settings"] = merged
@@ -96,58 +112,9 @@ class FelicityClient:
 
         return data
 
-    async def _async_read_raw(self, command: bytes) -> str:
-        """Open TCP, send command, read response as text."""
-        try:
-            reader, writer = await asyncio.open_connection(self._host, self._port)
-        except Exception as err:
-            raise FelicityApiError(
-                f"Error connecting to {self._host}:{self._port}: {err}"
-            ) from err
-
-        try:
-            writer.write(command)
-            await writer.drain()
-
-            data = b""
-            for _ in range(20):
-                try:
-                    chunk = await asyncio.wait_for(reader.read(1024), timeout=0.5)
-                except asyncio.TimeoutError:
-                    break
-                if not chunk:
-                    break
-                data += chunk
-                if b"}" in chunk:
-                    try:
-                        more = await asyncio.wait_for(reader.read(1024), timeout=0.2)
-                        if more:
-                            data += more
-                    except asyncio.TimeoutError:
-                        pass
-                    break
-
-        except Exception as err:
-            raise FelicityApiError(
-                f"Error talking to {self._host}:{self._port}: {err}"
-            ) from err
-        finally:
-            writer.close()
-            try:
-                await writer.wait_closed()
-            except Exception:
-                pass
-
-        if not data:
-            raise FelicityApiError("No data received from battery")
-
-        text = data.decode("ascii", errors="ignore").strip()
-        _LOGGER.debug("Raw Felicity response for %r: %r", command, text)
-        return text
-
-    # --------------------------------------------------------------------- #
-    #                         PARSER 'dev real infor'                       #
-    # --------------------------------------------------------------------- #
+    # -------------------------------------------------------------------------
+    # Parsing helpers
+    # -------------------------------------------------------------------------
 
     def _parse_real_payload(self, text: str) -> Dict[str, Any]:
         """Parse Felicity 'dev real infor' payload into dict we use."""
@@ -157,6 +124,15 @@ class FelicityClient:
             norm = norm[: last_brace + 1]
 
         result: Dict[str, Any] = {}
+
+        # Сначала пытаемся распарсить полный JSON так, как его отдаёт устройство.
+        # Это позволяет сохранить все верхнеуровневые поля (ACin/ACout/PV/Energy/busVp/workM/fault/warn/lPerc/etc.)
+        try:
+            full = json.loads(norm)
+            if isinstance(full, dict):
+                result.update(full)
+        except Exception:
+            _LOGGER.debug("Failed to parse full JSON from real payload: %r", text)
 
         def _find_str(key: str) -> str | None:
             m = re.search(rf'"{key}"\s*:\s*"([^"]*)"', norm)
@@ -168,27 +144,34 @@ class FelicityClient:
 
         # Simple fields
         result["CommVer"] = _find_int("CommVer")
-        result["wifiSN"] = _find_str("wifiSN")
-        result["DevSN"] = _find_str("DevSN")
-        result["Estate"] = _find_int("Estate")
-        result["Bfault"] = _find_int("Bfault")
-        result["Bwarn"] = _find_int("Bwarn") or 0
+        dev_sn = _find_str("DevSN")
+        wifi_sn = _find_str("wifiSN")
+        if dev_sn:
+            result["DevSN"] = dev_sn
+        if wifi_sn:
+            result["wifiSN"] = wifi_sn
 
-        # Batt: [[53300],[1],[null]]
+        # Numeric 'Bfault' and 'Bwarn'
+        bfault = _find_int("Bfault")
+        bwarn = _find_int("Bwarn")
+        if bfault is not None:
+            result["Bfault"] = bfault
+        if bwarn is not None:
+            result["Bwarn"] = bwarn
+
+        # Batt: [[52100],[-112],[-604,-480]]
         m = re.search(
-            r'"Batt"\s*:\s*\[\s*\[\s*([-0-9]+)\s*\]\s*,\s*\[\s*([-0-9]+)\s*\]\s*,\s*\[\s*(null|None|[-0-9]+)?\s*\]\s*\]',
+            r'"Batt"\s*:\s*\[\s*\[\s*([-0-9]+)\s*\]\s*,\s*\[\s*([-0-9]+)\s*\]\s*,\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\]\s*\]',
             norm,
         )
         if m:
             v = int(m.group(1))
             i = int(m.group(2))
-            third_raw = m.group(3)
-            third = None
-            if third_raw not in (None, "null", "None", ""):
-                third = int(third_raw)
-            result["Batt"] = [[v], [i], [third]]
+            p_chg = int(m.group(3))
+            p_dis = int(m.group(4))
+            result["Batt"] = [[v], [i], [p_chg, p_dis]]
 
-        # Batsoc: [[9900,1000,250000]]
+        # Batsoc: [[8400,0,0]]
         m = re.search(
             r'"Batsoc"\s*:\s*\[\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\]\s*\]',
             norm,
@@ -223,33 +206,17 @@ class FelicityClient:
             c2 = int(m.group(4))
             result["LVolCur"] = [[v1, v2], [c1, c2]]
 
-        # BTemp
-        btemp = None
+        # BTemp: [[320,0,234,233,226,0,0,0]]
         m = re.search(
-            r'"BTemp"\s*:\s*\[\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\]'
-            r'(?:\s*,\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\])?\s*\]',
-            norm,
+            r'"BTemp"\s*:\s*\[\s*\[\s*([-0-9,\s]+)\s*\]\s*\]', norm
         )
         if m:
-            t1 = int(m.group(1))
-            t2 = int(m.group(2))
-            if m.group(3) is not None and m.group(4) is not None:
-                t3 = int(m.group(3))
-                t4 = int(m.group(4))
-                btemp = [[t1, t2], [t3, t4]]
-            else:
-                btemp = [[t1, t2]]
-        else:
-            m = re.search(
-                r'"Templist"\s*:\s*\[\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\]',
-                norm,
-            )
-            if m:
-                t1 = int(m.group(1))
-                t2 = int(m.group(2))
-                btemp = [[t1, t2]]
-        if btemp is not None:
-            result["BTemp"] = btemp
+            temps_str = m.group(1)
+            try:
+                temps = [int(x) for x in temps_str.split(",") if x.strip() != ""]
+                result["BTemp"] = [temps]
+            except Exception:
+                _LOGGER.debug("Failed to parse BTemp from %r", temps_str)
 
         # BatcelList
         m = re.search(r'"BatcelList"\s*:\s*\[\s*\[([0-9,\s-]+)\]', norm)
@@ -261,8 +228,18 @@ class FelicityClient:
             except Exception:
                 _LOGGER.debug("Failed to parse BatcelList from %r", cells_str)
 
+        # BatInOut: [103,0] - мощность / направление
+        m = re.search(
+            r'"BatInOut"\s*:\s*\[\s*([-0-9]+)\s*,\s*([-0-9]+)\s*\]', norm
+        )
+        if m:
+            p = int(m.group(1))
+            flag = int(m.group(2))
+            result["BatInOut"] = [p, flag]
+
         _LOGGER.debug("Parsed Felicity real data dict: %s", result)
 
+        # Минимальная проверка: должны быть основные поля Batsoc или Batt
         if "Batsoc" not in result and "Batt" not in result:
             raise FelicityApiError(
                 f"Unable to parse essential fields from payload: {text}"

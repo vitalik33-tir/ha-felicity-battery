@@ -14,6 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.const import CONF_HOST
 
 from .const import DOMAIN
 
@@ -102,6 +103,8 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
         serial = data.get("DevSN") or data.get("wifiSN") or self._entry.entry_id
         basic = data.get("_basic") or {}
         sw_version = basic.get("version")
+        host = self._entry.data.get(CONF_HOST)
+        serial_display = f"{serial} (IP {host})" if host else serial
 
         return {
             "identifiers": {(DOMAIN, serial)},
@@ -109,9 +112,8 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
             "manufacturer": "Felicity",
             "model": "FLA48200",
             "sw_version": sw_version,
-            "serial_number": serial,
+            "serial_number": serial_display,
         }
-
 
     @property
     def is_on(self) -> bool | None:
