@@ -102,14 +102,15 @@ class FelicityBinarySensor(CoordinatorEntity, BinarySensorEntity):
         serial = data.get("DevSN") or data.get("wifiSN") or self._entry.entry_id
         basic = data.get("_basic") or {}
         sw_version = basic.get("version")
+
         return {
-            "identifiers": {(DOMAIN, serial)},   
+            "identifiers": {(DOMAIN, serial)},
             "name": self._entry.data.get("name", "Felicity Battery"),
             "manufacturer": "Felicity",
             "model": "FLA48200",
             "sw_version": sw_version,
-            "serial_number": serial_display,
-          }
+            "serial_number": serial,
+        }
 
 
     @property
