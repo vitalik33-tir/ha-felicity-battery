@@ -514,11 +514,6 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         serial = data.get("DevSN") or data.get("wifiSN") or self._entry.entry_id
         basic = data.get("_basic") or {}
         sw_version = basic.get("version")
-        host = self._entry.data.get("host")
-        if host:
-            serial_display = f"{serial} (IP {host})"
-        else:
-            serial_display = serial
 
         return {
             "identifiers": {(DOMAIN, serial)},
@@ -526,7 +521,7 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
             "manufacturer": "Felicity",
             "model": "FLA48200",
             "sw_version": sw_version,
-            "serial_number": serial_display,
+            "serial_number": serial,
         }
 
 

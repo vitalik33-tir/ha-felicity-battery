@@ -13,8 +13,11 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .api import FelicityApiError, FelicityClient
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, PLATFORMS
-
+from .const import (
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    PLATFORMS,
+)
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -28,7 +31,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     host: str = entry.data["host"]
     port: int = entry.data["port"]
-
     client = FelicityClient(host, port)
 
     async def _async_update_data():
@@ -51,7 +53,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = {
         "client": client,
         "coordinator": coordinator,
-    }
+            }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
