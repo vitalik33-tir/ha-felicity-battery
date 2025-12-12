@@ -12,7 +12,6 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    CONF_HOST,
     PERCENTAGE,
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
@@ -24,12 +23,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
-    DOMAIN,
-    CONF_DEVICE_TYPE,
-    DEVICE_TYPE_BATTERY,
-    DEVICE_TYPE_INVERTER,
-)
+from .const import DOMAIN
 
 
 @dataclass
@@ -491,23 +485,9 @@ async def async_setup_entry(
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
 
-    device_type: str = data.get("device_type") or entry.data.get(
-        CONF_DEVICE_TYPE,
-        DEVICE_TYPE_BATTERY,
-    )
-
-    entities: list[SensorEntity] = []
-
-    if device_type == DEVICE_TYPE_INVERTER:
-        from .inverter_sensor import create_inverter_sensors
-
-        entities.extend(create_inverter_sensors(coordinator, entry))
-    else:
-        # Батарейные сенсоры — оставляем как было, чтобы ничего не ломать.
-        entities.extend(
-            FelicitySensor(coordinator, entry, desc) for desc in SENSOR_DESCRIPTIONS
-        )
-
+    entities: list[FelicitySensor] = [
+        FelicitySensor(coordinator, entry, desc) for desc in SENSOR_DESCRIPTIONS
+    ]
     async_add_entities(entities)
 
 
@@ -534,23 +514,20 @@ class FelicitySensor(CoordinatorEntity, SensorEntity):
         serial = data.get("DevSN") or data.get("wifiSN") or self._entry.entry_id
         basic = data.get("_basic") or {}
         sw_version = basic.get("version")
+        host = self._entry.data.get("host")
+        if host:
+            serial_display = f"{serial} (IP {host})"
+        else:
+            serial_display = serial
 
-        host = self._entry.data.get(CONF_HOST)
-
-        info: dict[str, Any] = {
+        return {
             "identifiers": {(DOMAIN, serial)},
             "name": self._entry.data.get("name", "Felicity Battery"),
             "manufacturer": "Felicity",
             "model": "FLA48200",
             "sw_version": sw_version,
-            "serial_number": serial,
+            "serial_number": serial_display,
         }
-
-        if host:
-            info["configuration_url"] = f"http://{host}"
-            info["ip_address"] = host
-
-        return info
 
 
 

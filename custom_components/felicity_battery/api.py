@@ -151,36 +151,10 @@ class FelicityClient:
 
     def _parse_real_payload(self, text: str) -> Dict[str, Any]:
         """Parse Felicity 'dev real infor' payload into dict we use."""
-        # Устройства Felicity обычно возвращают один JSON-объект.
-        # Для инверторов в payload есть много полей (ACin/ACout/PV/Temp/Energy/INV и т.д.),
-        # поэтому в первую очередь пытаемся разобрать payload как полноценный JSON.
-        # Для обратной совместимости (если JSON «битый») оставляем старый regex‑парсер.
-
-        norm = text.replace("'", '"').strip()
+        norm = text.replace("'", '"')
         last_brace = norm.rfind("}")
         if last_brace != -1:
             norm = norm[: last_brace + 1]
-
-        try:
-            parsed = json.loads(norm)
-            if isinstance(parsed, dict):
-                # Совместимость со старыми батарейными сенсорами/бинарниками,
-                # которые ожидают ключи Bwarn/Bfault.
-                if "Bwarn" not in parsed and "warn" in parsed:
-                    parsed["Bwarn"] = parsed.get("warn", 0) or 0
-                if "Bfault" not in parsed and "fault" in parsed:
-                    parsed["Bfault"] = parsed.get("fault", 0) or 0
-
-                _LOGGER.debug("Parsed Felicity real data (json): %s", parsed)
-
-                if "Batsoc" not in parsed and "Batt" not in parsed:
-                    raise FelicityApiError(
-                        f"Unable to parse essential fields from payload: {text}"
-                    )
-
-                return parsed
-        except Exception as err:
-            _LOGGER.debug("JSON parse failed for real payload, fallback to regex: %s", err)
 
         result: Dict[str, Any] = {}
 
